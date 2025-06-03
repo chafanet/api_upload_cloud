@@ -1,0 +1,210 @@
+openapi: 3.0.3
+info:
+  title: File Upload API with Resume Capability
+  description: |
+    A Go-based API that handles large file uploads with resume capability, using cloud storage (AWS S3) 
+    with a provider-agnostic design. Supports multipart uploads for large files with concurrent upload capability.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /upload/initiate:
+    post:
+      summary: Initiate a new multipart upload
+      description: Starts a new multipart upload session and returns an upload ID
+      operationId: initiateUpload
+      tags:
+        - Upload
+      parameters:
+        - name: X-File-Name
+          in: header
+          required: true
+          description: Name of the file to upload
+          schema:
+            type: string
+        - name: X-Total-Parts
+          in: header
+          required: true
+          description: Total number of parts that will be uploaded
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Upload initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  upload_id:
+                    type: string
+                    description: Unique identifier for the upload session
+                  key:
+                    type: string
+                    description: Generated key for the file in storage
+        '400':
+          description: Bad request - missing or invalid headers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests - rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /upload/part:
+    post:
+      summary: Upload a part
+      description: Upload a single part of the multipart upload
+      operationId: uploadPart
+      tags:
+        - Upload
+      parameters:
+        - name: X-Upload-ID
+          in: header
+          required: true
+          description: Upload ID from the initiate response
+          schema:
+            type: string
+        - name: X-Part-Number
+          in: header
+          required: true
+          description: Part number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+        - name: Content-Length
+          in: header
+          required: true
+          description: Size of the part in bytes
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Part uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  part_number:
+                    type: integer
+                    description: Number of the uploaded part
+                  etag:
+                    type: string
+                    description: ETag of the uploaded part
+        '400':
+          description: Bad request - missing or invalid headers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Upload ID not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests - rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /upload/complete:
+    post:
+      summary: Complete multipart upload
+      description: Finalizes the multipart upload by combining all parts
+      operationId: completeUpload
+      tags:
+        - Upload
+      parameters:
+        - name: X-Upload-ID
+          in: header
+          required: true
+          description: Upload ID from the initiate response
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Upload completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+                  key:
+                    type: string
+                    description: Final key of the uploaded file
+        '400':
+          description: Bad request - missing headers or not all parts uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Upload ID not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests - rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  securitySchemes: {}
+
+tags:
+  - name: Upload
+    description: File upload operations 
