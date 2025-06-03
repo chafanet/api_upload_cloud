@@ -128,6 +128,7 @@ POST /upload/part
 Headers:
 - X-Upload-ID: string (required)
 - X-Part-Number: number (required)
+- Content-Length: number (required)
 
 Body: Binary file chunk
 
