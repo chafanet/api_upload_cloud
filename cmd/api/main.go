@@ -5,11 +5,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 
 	"upload_api_cloud/internal/handler"
 	"upload_api_cloud/internal/middleware"
@@ -39,8 +41,14 @@ func main() {
 	// Set up Gin router
 	router := gin.Default()
 
-	// Configure rate limiter (10 requests per second per IP, burst of 20)
-	rateLimiter := middleware.NewRateLimiter(10, 20, 1*time.Hour)
+	// Get rate limit amount from environment variable, default to 10 if not set or invalid
+	rateLimit := 10
+	if rlEnv := os.Getenv("RATE_LIMIT"); rlEnv != "" {
+		if rlParsed, err := strconv.Atoi(rlEnv); err == nil && rlParsed > 0 {
+			rateLimit = rlParsed
+		}
+	}
+	rateLimiter := middleware.NewRateLimiter(rate.Limit(rateLimit), rateLimit+20, 1*time.Hour)
 	router.Use(rateLimiter.Middleware())
 
 	// Configure port
