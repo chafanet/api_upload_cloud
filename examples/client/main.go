@@ -48,6 +48,9 @@ func (c *UploadClient) InitiateUpload(fileName string, totalParts int) (*Initiat
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Request: %s %s\n", req.Method, req.URL.String())
+		fmt.Printf("Request Headers: %v\n", req.Header)
+
 		return nil, fmt.Errorf("server returned error: %s, status: %d", string(body), resp.StatusCode)
 	}
 
@@ -125,11 +128,23 @@ func (c *UploadClient) CompleteUpload(uploadID string) error {
 }
 
 func main() {
-	// Create a new client
-	client := NewUploadClient("http://localhost:8080")
+	// Set default values
+	baseURL := "https://crzqgyd49x.us-east-1.awsapprunner.com"
+	filePath := "document.pdf"
+
+	// Handle command line arguments
+	switch len(os.Args) {
+	case 3: // Both baseURL and filename provided
+		baseURL = os.Args[1]
+		filePath = os.Args[2]
+	case 2: // Only baseURL provided
+		baseURL = os.Args[1]
+	}
+
+	// Create a new client with the determined base URL
+	client := NewUploadClient(baseURL)
 
 	// Open the file to upload
-	filePath := "document.pdf" // Replace with your file path
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Fatalf("Failed to open file: %v", err)
